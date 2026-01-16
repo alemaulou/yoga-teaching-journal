@@ -461,20 +461,6 @@ with tab1:
         height=80
     )
     
-    # Sequence Notes (JSON/VARIANT)
-    with st.expander("Sequence Notes (optional - stored as JSON)"):
-        st.caption("Add structured sequence notes - these are stored as flexible JSON data")
-        
-        seq_col1, seq_col2 = st.columns(2)
-        with seq_col1:
-            seq_warmup = st.text_input("Warmup", placeholder="e.g., Sun A x 3, Sun B x 2")
-            seq_standing = st.text_input("Standing Sequence", placeholder="e.g., Warrior series, Triangle")
-        with seq_col2:
-            seq_peak = st.text_input("Peak Sequence", placeholder="e.g., Crow prep, Crow attempts")
-            seq_cooldown = st.text_input("Cooldown", placeholder="e.g., Pigeon, Supine twist")
-        
-        seq_savasana = st.number_input("Savasana (minutes)", min_value=0, max_value=15, value=5)
-    
     # Personal Notes
     log_notes = st.text_area(
         "Personal Notes", 
@@ -492,14 +478,6 @@ with tab1:
             safe_intention = log_intention.replace("'", "''") if log_intention else ""
             safe_notes = log_notes.replace("'", "''") if log_notes else ""
             safe_custom_theme = custom_theme.replace("'", "''") if custom_theme else None
-            
-            # Build sequence notes JSON
-            sequence_notes = {}
-            if seq_warmup: sequence_notes['warmup'] = seq_warmup
-            if seq_standing: sequence_notes['standing'] = seq_standing.split(', ')
-            if seq_peak: sequence_notes['peak'] = seq_peak
-            if seq_cooldown: sequence_notes['cooldown'] = seq_cooldown
-            if seq_savasana: sequence_notes['savasana_minutes'] = seq_savasana
             
             # Build SQL using SELECT (PARSE_JSON can't be in VALUES clause)
             theme_id_value = str(selected_theme_id) if selected_theme_id else "NULL"
@@ -1045,21 +1023,6 @@ with tab4:
                     
                     if row['INTENTION']:
                         st.write(f"**Intention:** {row['INTENTION']}")
-                    
-                    # Show sequence notes if present (VARIANT data)
-                    if row['SEQUENCE_NOTES']:
-                        with st.container():
-                            st.write("**Sequence Notes:**")
-                            try:
-                                # Parse VARIANT data
-                                seq = row['SEQUENCE_NOTES'] if isinstance(row['SEQUENCE_NOTES'], dict) else json.loads(str(row['SEQUENCE_NOTES']))
-                                for key, value in seq.items():
-                                    if isinstance(value, list):
-                                        st.write(f"  • {key}: {', '.join(value)}")
-                                    else:
-                                        st.write(f"  • {key}: {value}")
-                            except:
-                                st.write(f"  {row['SEQUENCE_NOTES']}")
                     
                     if row['PERSONAL_NOTES']:
                         st.write(f"**Notes:** {row['PERSONAL_NOTES']}")
