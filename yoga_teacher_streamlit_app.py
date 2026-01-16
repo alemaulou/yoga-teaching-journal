@@ -1,13 +1,6 @@
 """
 Yoga Teaching Journal - Complete Streamlit App
 Alessandro Lou - Equinox SF Instructor
-
-Covers Snowflake Badges 1-6:
-- Badge 1: Foreign keys, normalized tables
-- Badge 3: Streamlit in Snowflake
-- Badge 5: Views, analytics
-- Badge 6: Cortex AI
-
 Track yoga classes, analyze patterns, get AI-powered inspiration.
 """
 
