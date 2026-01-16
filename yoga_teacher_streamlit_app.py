@@ -103,7 +103,7 @@ st.markdown("""
     }
     
     /* Slider */
-    .stSlider > div > div > div > div {
+    .stSlider [data-baseweb="slider"] > div > div {
         background-color: #FF4B4B !important;
     }
     
