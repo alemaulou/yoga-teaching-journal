@@ -308,7 +308,7 @@ def get_themes(_session):
 # ============================================
 
 # Try to load Equinox logo
-logo_path = "assets/images/equinox_logo.png"
+logo_path = "assets/equinox_logo.png"
 img_base64 = get_base64_image(logo_path) if os.path.exists(logo_path) else None
 
 # Connection status
