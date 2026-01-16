@@ -103,9 +103,6 @@ st.markdown("""
     }
     
     /* Slider */
-    .stSlider > div > div > div > div {
-        background-color: #FF4B4B !important;
-    }
     
     /* Buttons */
     .stButton > button {
@@ -362,7 +359,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "Log Class", 
     "Dashboard", 
     "AI Inspiration", 
-    "ClassHistory"
+    "Class History"
 ])
 
 
