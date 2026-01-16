@@ -324,7 +324,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # ============================================
 
 with tab1:
-    st.header("Quick Class Log")
+    st.header("Class Log")
     st.caption("Log your class with full tracking - themes, sequences, and insights.")
     
     locations_df = get_locations(session)
@@ -460,7 +460,7 @@ with tab1:
 # ============================================
 
 with tab2:
-    st.header("Your Teaching Dashboard")
+    st.header("Dashboard")
     
     # Overall stats - 4 metrics evenly spaced
     try:
@@ -610,7 +610,7 @@ with tab2:
 # ============================================
 
 with tab3:
-    st.header("Teaching Inspiration")
+    st.header("AI Inspiration")
     
     if 'theme_result' not in st.session_state:
         st.session_state.theme_result = None
