@@ -12,6 +12,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import base64
 import os
+import json
 import time
 
 
@@ -91,6 +92,11 @@ st.markdown("""
     .stSelectbox > div > div > div[data-baseweb="select"] > div {
         background-color: #1E1E1E !important;
         color: #FFFFFF !important;
+    }
+    
+    /* Slider */
+    .stSlider > div > div > div > div {
+        background-color: #FF4B4B !important;
     }
     
     /* Buttons */
@@ -348,7 +354,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "Log Class", 
     "Dashboard", 
     "AI Inspiration", 
-    "Class History"
+    "ClassHistory"
 ])
 
 
@@ -363,7 +369,6 @@ with tab1:
     # Get dropdown data
     locations_df = get_locations(session)
     class_types_df = get_class_types(session)
-    themes_df = get_themes(session)
     
     # Row 1: Date, Time, Location
     col1, col2, col3 = st.columns(3)
@@ -398,9 +403,9 @@ with tab1:
             
             # Show heated indicator
             if is_heated:
-                st.caption("🔥 Heated class")
+                st.caption("ðŸ”¥ Heated class")
             else:
-                st.caption("❄️ Non-heated class")
+                st.caption("â„ï¸ Non-heated class")
         else:
             st.warning("No class types found.")
             selected_class_type_id = None
@@ -450,6 +455,20 @@ with tab1:
         height=80
     )
     
+    # Sequence Notes (JSON/VARIANT)
+    with st.expander("Sequence Notes (optional - stored as JSON)"):
+        st.caption("Add structured sequence notes - these are stored as flexible JSON data")
+        
+        seq_col1, seq_col2 = st.columns(2)
+        with seq_col1:
+            seq_warmup = st.text_input("Warmup", placeholder="e.g., Sun A x 3, Sun B x 2")
+            seq_standing = st.text_input("Standing Sequence", placeholder="e.g., Warrior series, Triangle")
+        with seq_col2:
+            seq_peak = st.text_input("Peak Sequence", placeholder="e.g., Crow prep, Crow attempts")
+            seq_cooldown = st.text_input("Cooldown", placeholder="e.g., Pigeon, Supine twist")
+        
+        seq_savasana = st.number_input("Savasana (minutes)", min_value=0, max_value=15, value=5)
+    
     # Personal Notes
     log_notes = st.text_area(
         "Personal Notes", 
@@ -468,14 +487,24 @@ with tab1:
             safe_notes = log_notes.replace("'", "''") if log_notes else ""
             safe_custom_theme = custom_theme.replace("'", "''") if custom_theme else None
             
+            # Build sequence notes JSON
+            sequence_notes = {}
+            if seq_warmup: sequence_notes['warmup'] = seq_warmup
+            if seq_standing: sequence_notes['standing'] = seq_standing.split(', ')
+            if seq_peak: sequence_notes['peak'] = seq_peak
+            if seq_cooldown: sequence_notes['cooldown'] = seq_cooldown
+            if seq_savasana: sequence_notes['savasana_minutes'] = seq_savasana
+            
+            # Build SQL using SELECT (PARSE_JSON can't be in VALUES clause)
             theme_id_value = str(selected_theme_id) if selected_theme_id else "NULL"
             custom_theme_value = f"'{safe_custom_theme}'" if safe_custom_theme else "NULL"
+            sequence_notes_value = f"PARSE_JSON('{json.dumps(sequence_notes)}')" if sequence_notes else "NULL"
             
             sql = f"""
                 INSERT INTO CLASSES_TAUGHT (
                     class_date, class_time, day_of_week, location_id, class_type_id,
                     theme_id, custom_theme, intention, peak_pose, 
-                    energy_level, student_count, vibe_rating, personal_notes
+                    sequence_notes, energy_level, student_count, vibe_rating, personal_notes
                 )
                 SELECT
                     '{log_date}',
@@ -487,6 +516,7 @@ with tab1:
                     {custom_theme_value},
                     '{safe_intention}',
                     '{safe_peak}',
+                    {sequence_notes_value},
                     '{log_energy}',
                     {log_students},
                     {log_vibe},
@@ -533,8 +563,6 @@ with tab2:
             st.metric("Avg Vibe", f"{avg}/5" if avg else "N/A")
         with col4:
             st.metric("Locations", int(stats['LOCATIONS_TAUGHT'].iloc[0]))
-        with col5:
-            st.metric("Themes Used", int(stats['UNIQUE_THEMES'].iloc[0]))
     except Exception as e:
         st.info("Log some classes to see your stats!")
     
@@ -951,7 +979,8 @@ with tab4:
             c.student_count,
             c.vibe_rating,
             c.intention,
-            c.personal_notes
+            c.personal_notes,
+            c.sequence_notes
         FROM CLASSES_TAUGHT c
         LEFT JOIN LOCATIONS l ON c.location_id = l.location_id
         LEFT JOIN CLASS_TYPES ct ON c.class_type_id = ct.class_type_id
@@ -983,10 +1012,10 @@ with tab4:
             
             for _, row in history.iterrows():
                 # Build expander title
-                heated_icon = "🔥" if row['IS_HEATED'] else "❄️"
-                theme_display = f" – {row['THEME']}" if row['THEME'] else ""
+                heated_icon = "ðŸ”¥" if row['IS_HEATED'] else "â„ï¸"
+                theme_display = f" â€“ {row['THEME']}" if row['THEME'] else ""
                 
-                with st.expander(f"**{row['CLASS_DATE']}** {heated_icon} {row['LOCATION_NAME']} – {row['CLASS_TYPE']}{theme_display}"):
+                with st.expander(f"**{row['CLASS_DATE']}** {heated_icon} {row['LOCATION_NAME']} â€“ {row['CLASS_TYPE']}{theme_display}"):
                     col1, col2, col3, col4 = st.columns(4)
                     with col1:
                         st.write(f"{row['DAY_OF_WEEK']}")
@@ -1008,6 +1037,21 @@ with tab4:
                     
                     if row['INTENTION']:
                         st.write(f"**Intention:** {row['INTENTION']}")
+                    
+                    # Show sequence notes if present (VARIANT data)
+                    if row['SEQUENCE_NOTES']:
+                        with st.container():
+                            st.write("**Sequence Notes:**")
+                            try:
+                                # Parse VARIANT data
+                                seq = row['SEQUENCE_NOTES'] if isinstance(row['SEQUENCE_NOTES'], dict) else json.loads(str(row['SEQUENCE_NOTES']))
+                                for key, value in seq.items():
+                                    if isinstance(value, list):
+                                        st.write(f"  â€¢ {key}: {', '.join(value)}")
+                                    else:
+                                        st.write(f"  â€¢ {key}: {value}")
+                            except:
+                                st.write(f"  {row['SEQUENCE_NOTES']}")
                     
                     if row['PERSONAL_NOTES']:
                         st.write(f"**Notes:** {row['PERSONAL_NOTES']}")
