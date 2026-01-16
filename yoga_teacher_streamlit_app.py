@@ -12,7 +12,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import base64
 import os
-import json
 import time
 
 
@@ -92,11 +91,6 @@ st.markdown("""
     .stSelectbox > div > div > div[data-baseweb="select"] > div {
         background-color: #1E1E1E !important;
         color: #FFFFFF !important;
-    }
-    
-    /* Slider */
-    .stSlider > div > div > div > div {
-        background-color: #FF4B4B !important;
     }
     
     /* Buttons */
@@ -221,21 +215,6 @@ st.markdown("""
     
     .connected { color: #00AA00; }
     .disconnected { color: #FF4444; }
-    
-    /* Theme suggestion cards */
-    .theme-card {
-        background-color: #1E1E1E;
-        border: 1px solid #333333;
-        border-radius: 8px;
-        padding: 15px;
-        margin: 10px 0;
-    }
-    
-    .theme-category {
-        font-size: 12px;
-        color: #888888;
-        text-transform: uppercase;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -281,33 +260,16 @@ def get_class_types(_session):
         return pd.DataFrame({'CLASS_TYPE_ID': [], 'DISPLAY_NAME': [], 'IS_HEATED': [], 'DURATION_MINUTES': []})
 
 
-@st.cache_data(ttl=60)
-def get_themes(_session):
-    """Fetch themes for dropdown"""
-    try:
-        return _session.sql("""
-            SELECT theme_id, theme_name, category, notes
-            FROM THEMES 
-            WHERE is_active = TRUE
-            ORDER BY category, theme_name
-        """).to_pandas()
-    except:
-        return pd.DataFrame({'THEME_ID': [], 'THEME_NAME': [], 'CATEGORY': [], 'NOTES': []})
-
-
 # ============================================
 # HEADER WITH LOGO
 # ============================================
 
-# Try to load Equinox logo
 logo_path = "assets/equinox_logo.png"
 img_base64 = get_base64_image(logo_path) if os.path.exists(logo_path) else None
 
-# Connection status
 status_class = "connected" if connected else "disconnected"
 status_text = "Connected to Snowflake" if connected else "Not Connected"
 
-# Render header
 if img_base64:
     st.markdown(f"""
         <div class="header-bar">
@@ -339,7 +301,6 @@ else:
         </div>
     """, unsafe_allow_html=True)
 
-# Stop if not connected
 if not connected:
     st.error("Unable to connect to Snowflake. Please check your connection settings.")
     st.info("Make sure you've run the setup_yoga_journal_database.sql script first.")
@@ -354,7 +315,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "Log Class", 
     "Dashboard", 
     "AI Inspiration", 
-    "ClassHistory"
+    "Class History"
 ])
 
 
@@ -366,7 +327,6 @@ with tab1:
     st.header("Quick Class Log")
     st.caption("Log your class with full tracking - themes, sequences, and insights.")
     
-    # Get dropdown data
     locations_df = get_locations(session)
     class_types_df = get_class_types(session)
     
@@ -380,7 +340,6 @@ with tab1:
         log_time = st.time_input("Time")
     
     with col3:
-        # Location dropdown with neighborhood info
         if len(locations_df) > 0:
             location_options = locations_df['LOCATION_NAME'].tolist()
             selected_location = st.selectbox("Studio Location", options=location_options)
@@ -393,7 +352,6 @@ with tab1:
     col1, col2 = st.columns(2)
     
     with col1:
-        # Class type dropdown
         if len(class_types_df) > 0:
             class_type_options = class_types_df['DISPLAY_NAME'].tolist()
             selected_class_type = st.selectbox("Class Type", options=class_type_options)
@@ -401,29 +359,19 @@ with tab1:
             selected_class_type_id = int(selected_row['CLASS_TYPE_ID'].iloc[0])
             is_heated = bool(selected_row['IS_HEATED'].iloc[0])
             
-            # Show heated indicator
             if is_heated:
-                st.caption("ðŸ”¥ Heated class")
+                st.caption("🔥 Heated class")
             else:
-                st.caption("â„ï¸ Non-heated class")
+                st.caption("❄️ Non-heated class")
         else:
             st.warning("No class types found.")
             selected_class_type_id = None
     
     with col2:
-        # Simple text input for theme - no dropdown
         custom_theme = st.text_input(
             "Theme/Focus", 
             placeholder="e.g., Hip Openers, Heart Opening, Letting Go, Balance..."
         )
-        
-        # Try to match to existing theme for analytics
-        selected_theme_id = None
-        if custom_theme and len(themes_df) > 0:
-            match = themes_df[themes_df['THEME_NAME'].str.lower() == custom_theme.lower()]
-            if len(match) > 0:
-                selected_theme_id = int(match['THEME_ID'].iloc[0])
-                st.caption(f"Matched to theme: {match['THEME_NAME'].iloc[0]}")
     
     # Row 3: Peak Pose, Energy
     col1, col2 = st.columns(2)
@@ -455,20 +403,6 @@ with tab1:
         height=80
     )
     
-    # Sequence Notes (JSON/VARIANT)
-    with st.expander("Sequence Notes (optional - stored as JSON)"):
-        st.caption("Add structured sequence notes - these are stored as flexible JSON data")
-        
-        seq_col1, seq_col2 = st.columns(2)
-        with seq_col1:
-            seq_warmup = st.text_input("Warmup", placeholder="e.g., Sun A x 3, Sun B x 2")
-            seq_standing = st.text_input("Standing Sequence", placeholder="e.g., Warrior series, Triangle")
-        with seq_col2:
-            seq_peak = st.text_input("Peak Sequence", placeholder="e.g., Crow prep, Crow attempts")
-            seq_cooldown = st.text_input("Cooldown", placeholder="e.g., Pigeon, Supine twist")
-        
-        seq_savasana = st.number_input("Savasana (minutes)", min_value=0, max_value=15, value=5)
-    
     # Personal Notes
     log_notes = st.text_area(
         "Personal Notes", 
@@ -481,30 +415,18 @@ with tab1:
         if selected_location_id and selected_class_type_id:
             day_of_week = log_date.strftime("%A")
             
-            # Escape single quotes
             safe_peak = log_peak.replace("'", "''") if log_peak else ""
             safe_intention = log_intention.replace("'", "''") if log_intention else ""
             safe_notes = log_notes.replace("'", "''") if log_notes else ""
             safe_custom_theme = custom_theme.replace("'", "''") if custom_theme else None
             
-            # Build sequence notes JSON
-            sequence_notes = {}
-            if seq_warmup: sequence_notes['warmup'] = seq_warmup
-            if seq_standing: sequence_notes['standing'] = seq_standing.split(', ')
-            if seq_peak: sequence_notes['peak'] = seq_peak
-            if seq_cooldown: sequence_notes['cooldown'] = seq_cooldown
-            if seq_savasana: sequence_notes['savasana_minutes'] = seq_savasana
-            
-            # Build SQL using SELECT (PARSE_JSON can't be in VALUES clause)
-            theme_id_value = str(selected_theme_id) if selected_theme_id else "NULL"
             custom_theme_value = f"'{safe_custom_theme}'" if safe_custom_theme else "NULL"
-            sequence_notes_value = f"PARSE_JSON('{json.dumps(sequence_notes)}')" if sequence_notes else "NULL"
             
             sql = f"""
                 INSERT INTO CLASSES_TAUGHT (
                     class_date, class_time, day_of_week, location_id, class_type_id,
                     theme_id, custom_theme, intention, peak_pose, 
-                    sequence_notes, energy_level, student_count, vibe_rating, personal_notes
+                    energy_level, student_count, vibe_rating, personal_notes
                 )
                 SELECT
                     '{log_date}',
@@ -512,11 +434,10 @@ with tab1:
                     '{day_of_week}',
                     {selected_location_id},
                     {selected_class_type_id},
-                    {theme_id_value},
+                    NULL,
                     {custom_theme_value},
                     '{safe_intention}',
                     '{safe_peak}',
-                    {sequence_notes_value},
                     '{log_energy}',
                     {log_students},
                     {log_vibe},
@@ -535,25 +456,24 @@ with tab1:
 
 
 # ============================================
-# TAB 2: DASHBOARD
+# TAB 2: DASHBOARD (4 metrics, evenly spaced)
 # ============================================
 
 with tab2:
     st.header("Your Teaching Dashboard")
     
-    # Overall stats
+    # Overall stats - 4 metrics evenly spaced
     try:
         stats = session.sql("""
             SELECT 
                 COUNT(*) as total_classes,
                 COALESCE(SUM(student_count), 0) as total_students,
                 ROUND(AVG(vibe_rating), 1) as avg_vibe,
-                COUNT(DISTINCT location_id) as locations_taught,
-                COUNT(DISTINCT theme_id) as unique_themes
+                COUNT(DISTINCT location_id) as locations_taught
             FROM CLASSES_TAUGHT
         """).to_pandas()
         
-        col1, col2, col3, col4, col5 = st.columns(5)
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("Total Classes", int(stats['TOTAL_CLASSES'].iloc[0]))
         with col2:
@@ -652,7 +572,6 @@ with tab2:
                 labels={'CLASS_DATE': 'Date', 'STUDENT_COUNT': 'Students', 'LOCATION_NAME': 'Location'}
             )
             
-            # Add trend line
             fig.add_trace(
                 go.Scatter(
                     x=daily_students['CLASS_DATE'],
@@ -673,7 +592,6 @@ with tab2:
             )
             st.plotly_chart(fig, use_container_width=True)
             
-            # Summary stats
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("Avg Students", f"{daily_students['STUDENT_COUNT'].mean():.1f}")
@@ -687,32 +605,29 @@ with tab2:
 
 
 # ============================================
-# TAB 3: INSPIRATION (Button-Based with Data Injection)
-# Using AI_COMPLETE (new syntax) with my_popular_classes
+# TAB 3: AI INSPIRATION
+# Uses custom_theme directly (no themes table)
 # ============================================
 
 with tab3:
     st.header("Teaching Inspiration")
     
-    # Initialize session state for each generator
     if 'theme_result' not in st.session_state:
         st.session_state.theme_result = None
     if 'sequence_result' not in st.session_state:
         st.session_state.sequence_result = None
     
-    # Show what data we're using (collapsible)
     with st.expander("Your teaching history (used for personalization)"):
         try:
             history_preview = session.sql("""
                 SELECT 
-                    COALESCE(t.theme_name, c.custom_theme) AS theme,
-                    ROUND(AVG(c.vibe_rating), 1) AS avg_vibe,
-                    ROUND(AVG(c.student_count), 0) AS avg_students,
+                    custom_theme AS theme,
+                    ROUND(AVG(vibe_rating), 1) AS avg_vibe,
+                    ROUND(AVG(student_count), 0) AS avg_students,
                     COUNT(*) AS times_taught
-                FROM classes_taught c
-                LEFT JOIN themes t ON c.theme_id = t.theme_id
-                WHERE COALESCE(t.theme_name, c.custom_theme) IS NOT NULL
-                GROUP BY COALESCE(t.theme_name, c.custom_theme)
+                FROM classes_taught
+                WHERE custom_theme IS NOT NULL
+                GROUP BY custom_theme
                 ORDER BY times_taught DESC
                 LIMIT 10
             """).to_pandas()
@@ -726,9 +641,7 @@ with tab3:
     
     st.divider()
     
-    # ============================================
     # GENERATOR 1: Suggest a New Theme
-    # ============================================
     st.subheader("Suggest a New Theme")
     
     if st.button("Generate Theme Idea", key="btn_theme", use_container_width=True):
@@ -737,13 +650,12 @@ with tab3:
                 result = session.sql("""
                     WITH my_themes AS (
                         SELECT 
-                            COALESCE(t.theme_name, c.custom_theme) AS theme,
-                            ROUND(AVG(c.student_count), 0) AS avg_students,
+                            custom_theme AS theme,
+                            ROUND(AVG(student_count), 0) AS avg_students,
                             COUNT(*) AS times_taught
-                        FROM classes_taught c
-                        LEFT JOIN themes t ON c.theme_id = t.theme_id
-                        WHERE COALESCE(t.theme_name, c.custom_theme) IS NOT NULL
-                        GROUP BY COALESCE(t.theme_name, c.custom_theme)
+                        FROM classes_taught
+                        WHERE custom_theme IS NOT NULL
+                        GROUP BY custom_theme
                     ),
                     ai_past_themes AS (
                         SELECT theme_name, theme_approach
@@ -788,11 +700,9 @@ APPROACH: [how to teach this theme - what message, physical focus, feeling stude
                     FROM aggregated
                 """).to_pandas()
                 
-                # AI_COMPLETE returns string directly (no JSON parsing needed)
                 if len(result) > 0 and result['SUGGESTION'].iloc[0]:
                     st.session_state.theme_result = result['SUGGESTION'].iloc[0]
                     
-                    # Extract and save the theme and approach
                     suggestion_text = st.session_state.theme_result
                     if 'THEME:' in suggestion_text:
                         theme_line = suggestion_text.split('THEME:')[1].split('\n')[0].strip()
@@ -807,7 +717,7 @@ APPROACH: [how to teach this theme - what message, physical focus, feeling stude
                                     VALUES ('{safe_theme}', '{approach_part}')
                                 """).collect()
                             except:
-                                pass  # Table might not exist yet
+                                pass
                 else:
                     st.session_state.theme_result = None
                     st.warning("No suggestion generated. Make sure you have class history.")
@@ -815,9 +725,7 @@ APPROACH: [how to teach this theme - what message, physical focus, feeling stude
                 st.session_state.theme_result = None
                 st.error(f"Error: {e}")
     
-    # Display theme result directly below button
     if st.session_state.theme_result:
-        # Clean up escape characters
         clean_text = str(st.session_state.theme_result).replace('\\n', '\n').replace('\\t', '\t')
         st.markdown("**Theme Suggestion**")
         st.success(clean_text)
@@ -827,10 +735,7 @@ APPROACH: [how to teach this theme - what message, physical focus, feeling stude
     
     st.divider()
     
-    # ============================================
     # GENERATOR 2: Create a Sequence Idea
-    # Uses my_popular_classes (student_count >= 15)
-    # ============================================
     st.subheader("Create a Sequence")
     
     if st.button("Generate Sequence", key="btn_sequence", use_container_width=True):
@@ -839,13 +744,12 @@ APPROACH: [how to teach this theme - what message, physical focus, feeling stude
                 result = session.sql("""
                     WITH my_popular_classes AS (
                         SELECT 
-                            COALESCE(t.theme_name, c.custom_theme) AS theme,
-                            c.peak_pose,
-                            c.energy_level,
-                            c.student_count
-                        FROM classes_taught c
-                        LEFT JOIN themes t ON c.theme_id = t.theme_id
-                        WHERE c.student_count >= 15
+                            custom_theme AS theme,
+                            peak_pose,
+                            energy_level,
+                            student_count
+                        FROM classes_taught
+                        WHERE student_count >= 15
                     ),
                     ai_past_sequences AS (
                         SELECT peak_pose, sequence_outline
@@ -891,16 +795,13 @@ SEQUENCE:
                     FROM aggregated
                 """).to_pandas()
                 
-                # AI_COMPLETE returns string directly (no JSON parsing needed)
                 if len(result) > 0 and result['SUGGESTION'].iloc[0]:
                     st.session_state.sequence_result = result['SUGGESTION'].iloc[0]
                     
-                    # Extract and save the peak pose and sequence
                     suggestion_text = st.session_state.sequence_result
                     if 'PEAK POSE:' in suggestion_text and 'SEQUENCE:' in suggestion_text:
                         pose_line = suggestion_text.split('PEAK POSE:')[1].split('\n')[0].strip()
                         sequence_part = suggestion_text.split('SEQUENCE:')[1].strip()
-                        # Get first 500 chars of sequence as outline
                         sequence_outline = sequence_part[:500].replace("'", "''")
                         safe_pose = pose_line.replace("'", "''")
                         if safe_pose:
@@ -910,7 +811,7 @@ SEQUENCE:
                                     VALUES ('{safe_pose}', '{sequence_outline}')
                                 """).collect()
                             except:
-                                pass  # Table might not exist yet
+                                pass
                 else:
                     st.session_state.sequence_result = None
                     st.warning("No sequence generated. Make sure you have logged classes with 15+ students.")
@@ -918,9 +819,7 @@ SEQUENCE:
                 st.session_state.sequence_result = None
                 st.error(f"Error: {e}")
     
-    # Display sequence result directly below button
     if st.session_state.sequence_result:
-        # Clean up escape characters
         clean_text = str(st.session_state.sequence_result).replace('\\n', '\n').replace('\\t', '\t')
         st.markdown("**Sequence Suggestion**")
         st.success(clean_text)
@@ -930,17 +829,15 @@ SEQUENCE:
 
 
 # ============================================
-# TAB 4: HISTORY
+# TAB 4: HISTORY (uses custom_theme directly)
 # ============================================
 
 with tab4:
     st.header("Class History")
     
-    # Get filter data
     locations_df = get_locations(session)
     class_types_df = get_class_types(session)
     
-    # Filters
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -962,7 +859,6 @@ with tab4:
     with col4:
         search_term = st.text_input("Search", placeholder="e.g., hip, crow")
     
-    # Build query
     query = f"""
         SELECT 
             c.class_id,
@@ -972,19 +868,16 @@ with tab4:
             l.location_name,
             ct.display_name as class_type,
             ct.is_heated,
-            COALESCE(t.theme_name, c.custom_theme) AS theme,
-            t.category as theme_category,
+            c.custom_theme AS theme,
             c.peak_pose,
             c.energy_level,
             c.student_count,
             c.vibe_rating,
             c.intention,
-            c.personal_notes,
-            c.sequence_notes
+            c.personal_notes
         FROM CLASSES_TAUGHT c
         LEFT JOIN LOCATIONS l ON c.location_id = l.location_id
         LEFT JOIN CLASS_TYPES ct ON c.class_type_id = ct.class_type_id
-        LEFT JOIN THEMES t ON c.theme_id = t.theme_id
         WHERE c.class_date >= DATEADD(day, -{filter_days}, CURRENT_DATE())
     """
     
@@ -997,7 +890,7 @@ with tab4:
     if search_term:
         safe_search = search_term.replace("'", "''").lower()
         query += f""" AND (
-            LOWER(COALESCE(t.theme_name, c.custom_theme)) LIKE '%{safe_search}%' 
+            LOWER(c.custom_theme) LIKE '%{safe_search}%' 
             OR LOWER(c.personal_notes) LIKE '%{safe_search}%'
             OR LOWER(c.peak_pose) LIKE '%{safe_search}%'
         )"""
@@ -1011,11 +904,10 @@ with tab4:
             st.caption(f"Showing {len(history)} classes")
             
             for _, row in history.iterrows():
-                # Build expander title
-                heated_icon = "ðŸ”¥" if row['IS_HEATED'] else "â„ï¸"
-                theme_display = f" â€“ {row['THEME']}" if row['THEME'] else ""
+                heated_icon = "🔥" if row['IS_HEATED'] else "❄️"
+                theme_display = f" – {row['THEME']}" if row['THEME'] else ""
                 
-                with st.expander(f"**{row['CLASS_DATE']}** {heated_icon} {row['LOCATION_NAME']} â€“ {row['CLASS_TYPE']}{theme_display}"):
+                with st.expander(f"**{row['CLASS_DATE']}** {heated_icon} {row['LOCATION_NAME']} – {row['CLASS_TYPE']}{theme_display}"):
                     col1, col2, col3, col4 = st.columns(4)
                     with col1:
                         st.write(f"{row['DAY_OF_WEEK']}")
@@ -1029,29 +921,13 @@ with tab4:
                         st.write(f"Vibe: {row['VIBE_RATING'] or '?'}/5")
                     
                     if row['THEME']:
-                        category = f" ({row['THEME_CATEGORY']})" if row['THEME_CATEGORY'] else ""
-                        st.write(f"**Theme:** {row['THEME']}{category}")
+                        st.write(f"**Theme:** {row['THEME']}")
                     
                     if row['PEAK_POSE']:
                         st.write(f"**Peak:** {row['PEAK_POSE']}")
                     
                     if row['INTENTION']:
                         st.write(f"**Intention:** {row['INTENTION']}")
-                    
-                    # Show sequence notes if present (VARIANT data)
-                    if row['SEQUENCE_NOTES']:
-                        with st.container():
-                            st.write("**Sequence Notes:**")
-                            try:
-                                # Parse VARIANT data
-                                seq = row['SEQUENCE_NOTES'] if isinstance(row['SEQUENCE_NOTES'], dict) else json.loads(str(row['SEQUENCE_NOTES']))
-                                for key, value in seq.items():
-                                    if isinstance(value, list):
-                                        st.write(f"  â€¢ {key}: {', '.join(value)}")
-                                    else:
-                                        st.write(f"  â€¢ {key}: {value}")
-                            except:
-                                st.write(f"  {row['SEQUENCE_NOTES']}")
                     
                     if row['PERSONAL_NOTES']:
                         st.write(f"**Notes:** {row['PERSONAL_NOTES']}")
