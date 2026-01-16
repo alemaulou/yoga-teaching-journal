@@ -324,7 +324,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # ============================================
 
 with tab1:
-    st.header("Class Log")
+    st.header("Log Class")
     st.caption("Log your class with full tracking - themes, sequences, and insights.")
     
     locations_df = get_locations(session)
