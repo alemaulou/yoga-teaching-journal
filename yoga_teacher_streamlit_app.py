@@ -5,7 +5,6 @@ Alessandro Lou - Equinox SF Instructor
 Covers Snowflake Badges 1-6:
 - Badge 1: Foreign keys, normalized tables
 - Badge 3: Streamlit in Snowflake
-- Badge 4: VARIANT/JSON data
 - Badge 5: Views, analytics
 - Badge 6: Cortex AI
 
@@ -20,7 +19,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import base64
 import os
-import json
 import time
 
 
@@ -103,6 +101,9 @@ st.markdown("""
     }
     
     /* Slider */
+    .stSlider > div > div > div > div {
+        background-color: #FF4B4B !important;
+    }
     
     /* Buttons */
     .stButton > button {
@@ -359,7 +360,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "Log Class", 
     "Dashboard", 
     "AI Inspiration", 
-    "Class History"
+    "ClassHistory"
 ])
 
 
@@ -479,16 +480,14 @@ with tab1:
             safe_notes = log_notes.replace("'", "''") if log_notes else ""
             safe_custom_theme = custom_theme.replace("'", "''") if custom_theme else None
             
-            # Build SQL using SELECT (PARSE_JSON can't be in VALUES clause)
             theme_id_value = str(selected_theme_id) if selected_theme_id else "NULL"
             custom_theme_value = f"'{safe_custom_theme}'" if safe_custom_theme else "NULL"
-            sequence_notes_value = f"PARSE_JSON('{json.dumps(sequence_notes)}')" if sequence_notes else "NULL"
             
             sql = f"""
                 INSERT INTO CLASSES_TAUGHT (
                     class_date, class_time, day_of_week, location_id, class_type_id,
                     theme_id, custom_theme, intention, peak_pose, 
-                    sequence_notes, energy_level, student_count, vibe_rating, personal_notes
+                    energy_level, student_count, vibe_rating, personal_notes
                 )
                 SELECT
                     '{log_date}',
@@ -500,7 +499,6 @@ with tab1:
                     {custom_theme_value},
                     '{safe_intention}',
                     '{safe_peak}',
-                    {sequence_notes_value},
                     '{log_energy}',
                     {log_students},
                     {log_vibe},
@@ -965,8 +963,7 @@ with tab4:
             c.student_count,
             c.vibe_rating,
             c.intention,
-            c.personal_notes,
-            c.sequence_notes
+            c.personal_notes
         FROM CLASSES_TAUGHT c
         LEFT JOIN LOCATIONS l ON c.location_id = l.location_id
         LEFT JOIN CLASS_TYPES ct ON c.class_type_id = ct.class_type_id
