@@ -606,7 +606,6 @@ with tab2:
 
 # ============================================
 # TAB 3: AI INSPIRATION
-# Uses custom_theme directly (no themes table)
 # ============================================
 
 with tab3:
