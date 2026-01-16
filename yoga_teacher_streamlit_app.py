@@ -100,11 +100,6 @@ st.markdown("""
         color: #FFFFFF !important;
     }
     
-    /* Slider */
-    .stSlider > div > div > div > div {
-        background-color: #FF4B4B !important;
-    }
-    
     /* Buttons */
     .stButton > button {
         background: linear-gradient(135deg, #FF4B4B 0%, #FF6B6B 100%) !important;
